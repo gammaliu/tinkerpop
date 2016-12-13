@@ -28,6 +28,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSe
 import org.apache.tinkerpop.gremlin.process.traversal.util.FastNoSuchElementException;
 import org.apache.tinkerpop.gremlin.structure.util.StringFactory;
 import org.apache.tinkerpop.gremlin.structure.util.detached.DetachedFactory;
+import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.util.Collections;
 import java.util.NoSuchElementException;
@@ -96,8 +97,10 @@ public abstract class CollectingBarrierStep<S> extends AbstractStep<S, S> implem
 
     @Override
     public void addBarrier(final TraverserSet<S> barrier) {
-        this.traverserSet = barrier;
-        this.traverserSet.forEach(traverser -> traverser.setSideEffects(this.getTraversal().getSideEffects()));
+        IteratorUtils.removeOnNext(barrier.iterator()).forEachRemaining(traverser -> {
+            traverser.setSideEffects(this.getTraversal().getSideEffects());
+            this.starts.add(traverser);
+        });
         this.barrierConsumer(this.traverserSet);
     }
 
