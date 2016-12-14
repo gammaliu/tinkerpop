@@ -173,8 +173,7 @@ public final class DedupGlobalStep<S> extends FilterStep<S> implements Traversal
                 object = TraversalUtil.applyNullable(traverser, this.dedupTraversal);
             }
             if (!map.containsKey(object)) {
-                traverser.setBulk(1l);
-                traverser.set(DetachedFactory.detach(traverser.get(), true));
+                traverser.setBulk(1L);
                 map.put(object, traverser);
             }
         }
