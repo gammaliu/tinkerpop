@@ -25,8 +25,10 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Barrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.ByModulating;
+import org.apache.tinkerpop.gremlin.process.traversal.step.Distributing;
 import org.apache.tinkerpop.gremlin.process.traversal.step.GraphComputing;
 import org.apache.tinkerpop.gremlin.process.traversal.step.PathProcessor;
+import org.apache.tinkerpop.gremlin.process.traversal.step.Pushing;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Scoping;
 import org.apache.tinkerpop.gremlin.process.traversal.step.TraversalParent;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
@@ -50,14 +52,15 @@ import java.util.function.BinaryOperator;
 /**
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
-public final class DedupGlobalStep<S> extends FilterStep<S> implements TraversalParent, Scoping, GraphComputing, Barrier<Map<Object, Traverser.Admin<S>>>, ByModulating, PathProcessor {
+public final class DedupGlobalStep<S> extends FilterStep<S> implements TraversalParent, Scoping, Barrier<Map<Object, Traverser.Admin<S>>>, ByModulating, PathProcessor, Distributing, Pushing, GraphComputing {
 
     private Traversal.Admin<S, Object> dedupTraversal = null;
     private Set<Object> duplicateSet = new HashSet<>();
-    private boolean onGraphComputer = false;
+
     private final Set<String> dedupLabels;
     private Set<String> keepLabels;
-    private boolean executingAtMaster = false;
+    private boolean atWorker = true;
+    private boolean pushBased = false;
 
     public DedupGlobalStep(final Traversal.Admin traversal, final String... dedupLabels) {
         super(traversal);
@@ -66,7 +69,7 @@ public final class DedupGlobalStep<S> extends FilterStep<S> implements Traversal
 
     @Override
     protected boolean filter(final Traverser.Admin<S> traverser) {
-        if (this.onGraphComputer && !this.executingAtMaster) return true;
+        if (this.pushBased && this.atWorker) return true;
         traverser.setBulk(1);
         if (null == this.dedupLabels) {
             return this.duplicateSet.add(TraversalUtil.applyNullable(traverser, this.dedupTraversal));
@@ -75,11 +78,6 @@ public final class DedupGlobalStep<S> extends FilterStep<S> implements Traversal
             this.dedupLabels.forEach(label -> objects.add(TraversalUtil.applyNullable((S) this.getScopeValue(Pop.last, label, traverser), this.dedupTraversal)));
             return this.duplicateSet.add(objects);
         }
-    }
-
-    @Override
-    public void atMaster(final boolean atMaster) {
-        this.executingAtMaster = atMaster;
     }
 
     @Override
@@ -146,11 +144,6 @@ public final class DedupGlobalStep<S> extends FilterStep<S> implements Traversal
     }
 
     @Override
-    public void onGraphComputer() {
-        this.onGraphComputer = true;
-    }
-
-    @Override
     public Set<String> getScopeKeys() {
         return null == this.dedupLabels ? Collections.emptySet() : this.dedupLabels;
     }
@@ -214,5 +207,25 @@ public final class DedupGlobalStep<S> extends FilterStep<S> implements Traversal
     @Override
     public Set<String> getKeepLabels() {
         return this.keepLabels;
+    }
+
+    @Override
+    public void setAtMaster(final boolean atMaster) {
+        this.atWorker = !atMaster;
+    }
+
+    @Override
+    public void setPushBased(final boolean pushBased) {
+        this.pushBased = pushBased;
+    }
+
+    @Override
+    public void onGraphComputer() {
+        this.setPushBased(true);
+    }
+
+    @Override
+    public void atMaster(final boolean atMaster) {
+        this.setAtMaster(atMaster);
     }
 }

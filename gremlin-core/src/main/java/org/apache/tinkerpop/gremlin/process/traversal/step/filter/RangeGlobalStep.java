@@ -23,7 +23,7 @@ import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.Traverser;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Barrier;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Bypassing;
-import org.apache.tinkerpop.gremlin.process.traversal.step.GraphComputing;
+import org.apache.tinkerpop.gremlin.process.traversal.step.Distributing;
 import org.apache.tinkerpop.gremlin.process.traversal.step.Ranging;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.TraverserRequirement;
 import org.apache.tinkerpop.gremlin.process.traversal.traverser.util.TraverserSet;
@@ -33,9 +33,7 @@ import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
 
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BinaryOperator;
@@ -44,12 +42,12 @@ import java.util.function.BinaryOperator;
  * @author Bob Briody (http://bobbriody.com)
  * @author Marko A. Rodriguez (http://markorodriguez.com)
  */
-public final class RangeGlobalStep<S> extends FilterStep<S> implements Ranging, Bypassing, Barrier<TraverserSet<S>> {
+public final class RangeGlobalStep<S> extends FilterStep<S> implements Ranging, Bypassing, Barrier<TraverserSet<S>>, Distributing {
 
     private long low;
     private final long high;
     private AtomicLong counter = new AtomicLong(0l);
-    private boolean bypass;
+    private boolean atMaster = true;
 
     public RangeGlobalStep(final Traversal.Admin traversal, final long low, final long high) {
         super(traversal);
@@ -62,7 +60,7 @@ public final class RangeGlobalStep<S> extends FilterStep<S> implements Ranging, 
 
     @Override
     protected boolean filter(final Traverser.Admin<S> traverser) {
-        if (this.bypass) return true;
+        if (!this.atMaster) return true;
 
         if (this.high != -1 && this.counter.get() >= this.high) {
             throw FastNoSuchElementException.instance();
@@ -140,7 +138,7 @@ public final class RangeGlobalStep<S> extends FilterStep<S> implements Ranging, 
 
     @Override
     public void setBypass(final boolean bypass) {
-        this.bypass = bypass;
+        this.setAtMaster(!bypass);
     }
 
     @Override
@@ -155,7 +153,7 @@ public final class RangeGlobalStep<S> extends FilterStep<S> implements Ranging, 
 
     @Override
     public TraverserSet<S> nextBarrier() throws NoSuchElementException {
-        if(!this.starts.hasNext())
+        if (!this.starts.hasNext())
             throw FastNoSuchElementException.instance();
         final TraverserSet<S> barrier = new TraverserSet<>();
         while (this.starts.hasNext()) {
@@ -170,6 +168,11 @@ public final class RangeGlobalStep<S> extends FilterStep<S> implements Ranging, 
             traverser.setSideEffects(this.getTraversal().getSideEffects());
             this.addStart(traverser);
         });
+    }
+
+    @Override
+    public void setAtMaster(final boolean atMaster) {
+        this.atMaster = atMaster;
     }
 
     ////////////////
