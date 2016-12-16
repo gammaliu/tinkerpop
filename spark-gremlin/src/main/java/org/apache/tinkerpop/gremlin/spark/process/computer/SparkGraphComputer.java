@@ -51,6 +51,7 @@ import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.util.DefaultComputerResult;
+import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
 import org.apache.tinkerpop.gremlin.process.computer.util.MapMemory;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
@@ -132,8 +133,7 @@ public final class SparkGraphComputer extends AbstractHadoopGraphComputer {
 
     @Override
     public Future<ComputerResult> submit(final Graph graph) {
-        this.hadoopGraph = (HadoopGraph)graph;
-        ConfigurationUtils.copy(this.hadoopGraph.configuration(), this.sparkConfiguration);
+        ConfigurationUtils.copy(graph.configuration(), this.sparkConfiguration);
         return this.submit();
     }
 
@@ -143,7 +143,7 @@ public final class SparkGraphComputer extends AbstractHadoopGraphComputer {
     }
 
     public static SparkGraphComputer open(final org.apache.commons.configuration.Configuration configuration) {
-        return HadoopGraph.open(configuration).compute(SparkGraphComputer.class);
+        return new SparkGraphComputer(HadoopGraph.open(configuration));
     }
 
     private Future<ComputerResult> submitWithExecutor(Executor exec) {
