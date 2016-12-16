@@ -69,6 +69,7 @@ import org.apache.tinkerpop.gremlin.spark.structure.io.PersistedOutputRDD;
 import org.apache.tinkerpop.gremlin.spark.structure.io.SparkContextStorage;
 import org.apache.tinkerpop.gremlin.spark.structure.io.gryo.GryoSerializer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.io.Storage;
 
 import java.io.File;
@@ -127,6 +128,22 @@ public final class SparkGraphComputer extends AbstractHadoopGraphComputer {
     public Future<ComputerResult> submit() {
         this.validateStatePriorToExecution();
         return ComputerSubmissionHelper.runWithBackgroundThread(this::submitWithExecutor, "SparkSubmitter");
+    }
+
+    @Override
+    public Future<ComputerResult> submit(final Graph graph) {
+        this.hadoopGraph = (HadoopGraph)graph;
+        ConfigurationUtils.copy(this.hadoopGraph.configuration(), this.sparkConfiguration);
+        return this.submit();
+    }
+
+    @Override
+    public org.apache.commons.configuration.Configuration configuration() {
+        return new HadoopConfiguration(this.sparkConfiguration);
+    }
+
+    public static SparkGraphComputer open(final org.apache.commons.configuration.Configuration configuration) {
+        return HadoopGraph.open(configuration).compute(SparkGraphComputer.class);
     }
 
     private Future<ComputerResult> submitWithExecutor(Executor exec) {

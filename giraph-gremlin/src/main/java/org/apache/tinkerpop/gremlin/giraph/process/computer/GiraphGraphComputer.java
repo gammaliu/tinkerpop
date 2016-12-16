@@ -20,6 +20,7 @@ package org.apache.tinkerpop.gremlin.giraph.process.computer;
 
 import org.apache.commons.configuration.BaseConfiguration;
 import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationUtils;
 import org.apache.commons.configuration.FileConfiguration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.giraph.conf.GiraphConfiguration;
@@ -56,6 +57,7 @@ import org.apache.tinkerpop.gremlin.process.computer.MemoryComputeKey;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.util.DefaultComputerResult;
 import org.apache.tinkerpop.gremlin.process.computer.util.MapMemory;
+import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.io.Storage;
 import org.apache.tinkerpop.gremlin.util.Gremlin;
 import org.apache.tinkerpop.gremlin.util.iterator.IteratorUtils;
@@ -97,6 +99,18 @@ public final class GiraphGraphComputer extends AbstractHadoopGraphComputer imple
         this.useWorkerThreadsInConfiguration = this.giraphConfiguration.getInt(GiraphConstants.MAX_WORKERS, -666) != -666 || this.giraphConfiguration.getInt(GiraphConstants.NUM_COMPUTE_THREADS.getKey(), -666) != -666;
     }
 
+    public static GiraphGraphComputer open(final org.apache.commons.configuration.Configuration configuration) {
+        return HadoopGraph.open(configuration).compute(GiraphGraphComputer.class);
+    }
+
+    @Override
+    public Future<ComputerResult> submit(final Graph graph) {
+        this.hadoopGraph = (HadoopGraph)graph;
+        final Configuration configuration = this.hadoopGraph.configuration();
+        configuration.getKeys().forEachRemaining(key -> this.giraphConfiguration.set(key, configuration.getProperty(key).toString()));
+        return this.submit();
+    }
+
     @Override
     public GraphComputer workers(final int workers) {
         this.useWorkerThreadsInConfiguration = false;
@@ -127,6 +141,11 @@ public final class GiraphGraphComputer extends AbstractHadoopGraphComputer imple
     public Future<ComputerResult> submit() {
         super.validateStatePriorToExecution();
         return ComputerSubmissionHelper.runWithBackgroundThread(this::submitWithExecutor, "GiraphSubmitter");
+    }
+
+    @Override
+    public org.apache.commons.configuration.Configuration configuration() {
+        return ConfUtil.makeApacheConfiguration(this.giraphConfiguration);
     }
 
     private Future<ComputerResult> submitWithExecutor(final Executor exec) {

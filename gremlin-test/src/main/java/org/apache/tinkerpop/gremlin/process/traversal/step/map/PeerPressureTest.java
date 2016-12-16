@@ -25,6 +25,7 @@ import org.apache.tinkerpop.gremlin.process.computer.clustering.peerpressure.Pee
 import org.apache.tinkerpop.gremlin.process.traversal.Traversal;
 import org.apache.tinkerpop.gremlin.process.traversal.dsl.graph.__;
 import org.apache.tinkerpop.gremlin.structure.Vertex;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -78,6 +79,7 @@ public abstract class PeerPressureTest extends AbstractGremlinProcessTest {
     }
 
     @Test
+    @Ignore
     @LoadGraphWith(MODERN)
     public void g_V_hasXname_rippleX_inXcreatedX_peerPressure_byXoutEX_byXclusterX_repeatXunionXidentity__bothX_timesX2X_dedup_valueMapXname_clusterX() {
         final Traversal<Vertex, Map<String, List<Object>>> traversal = get_g_V_hasXname_rippleX_inXcreatedX_peerPressure_byXoutEX_byXclusterX_repeatXunionXidentity__bothX_timesX2X_dedup_valueMapXname_clusterX();
