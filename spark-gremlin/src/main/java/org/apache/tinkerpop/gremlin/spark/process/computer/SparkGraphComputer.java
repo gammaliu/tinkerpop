@@ -86,7 +86,6 @@ import java.util.concurrent.ThreadFactory;
  */
 public final class SparkGraphComputer extends AbstractHadoopGraphComputer {
 
-    private final org.apache.commons.configuration.Configuration sparkConfiguration;
     private boolean workersSet = false;
     private final ThreadFactory threadFactoryBoss = new BasicThreadFactory.Builder().namingPattern(SparkGraphComputer.class.getSimpleName() + "-boss").build();
 
@@ -105,15 +104,17 @@ public final class SparkGraphComputer extends AbstractHadoopGraphComputer {
 
     public SparkGraphComputer(final HadoopGraph hadoopGraph) {
         super(hadoopGraph);
-        this.sparkConfiguration = new HadoopConfiguration();
-        ConfigurationUtils.copy(this.hadoopGraph.configuration(), this.sparkConfiguration);
+    }
+
+    private SparkGraphComputer(final org.apache.commons.configuration.Configuration configuration) {
+        super(configuration);
     }
 
     @Override
     public GraphComputer workers(final int workers) {
         super.workers(workers);
-        if (this.sparkConfiguration.containsKey(SparkLauncher.SPARK_MASTER) && this.sparkConfiguration.getString(SparkLauncher.SPARK_MASTER).startsWith("local")) {
-            this.sparkConfiguration.setProperty(SparkLauncher.SPARK_MASTER, "local[" + this.workers + "]");
+        if (this.configuration.containsKey(SparkLauncher.SPARK_MASTER) && this.configuration.getString(SparkLauncher.SPARK_MASTER).startsWith("local")) {
+            this.configuration.setProperty(SparkLauncher.SPARK_MASTER, "local[" + this.workers + "]");
         }
         this.workersSet = true;
         return this;
@@ -121,7 +122,7 @@ public final class SparkGraphComputer extends AbstractHadoopGraphComputer {
 
     @Override
     public GraphComputer configure(final String key, final Object value) {
-        this.sparkConfiguration.setProperty(key, value);
+        this.configuration.setProperty(key, value);
         return this;
     }
 
@@ -131,19 +132,8 @@ public final class SparkGraphComputer extends AbstractHadoopGraphComputer {
         return ComputerSubmissionHelper.runWithBackgroundThread(this::submitWithExecutor, "SparkSubmitter");
     }
 
-    @Override
-    public Future<ComputerResult> submit(final Graph graph) {
-        ConfigurationUtils.copy(graph.configuration(), this.sparkConfiguration);
-        return this.submit();
-    }
-
-    @Override
-    public org.apache.commons.configuration.Configuration configuration() {
-        return new HadoopConfiguration(this.sparkConfiguration);
-    }
-
     public static SparkGraphComputer open(final org.apache.commons.configuration.Configuration configuration) {
-        return new SparkGraphComputer(HadoopGraph.open(configuration));
+        return new SparkGraphComputer(configuration);
     }
 
     private Future<ComputerResult> submitWithExecutor(Executor exec) {
@@ -151,7 +141,7 @@ public final class SparkGraphComputer extends AbstractHadoopGraphComputer {
         return computerService.submit(() -> {
             final long startTime = System.currentTimeMillis();
             // apache and hadoop configurations that are used throughout the graph computer computation
-            final org.apache.commons.configuration.Configuration graphComputerConfiguration = new HadoopConfiguration(this.sparkConfiguration);
+            final org.apache.commons.configuration.Configuration graphComputerConfiguration = new HadoopConfiguration(this.configuration);
             if (!graphComputerConfiguration.containsKey(Constants.SPARK_SERIALIZER))
                 graphComputerConfiguration.setProperty(Constants.SPARK_SERIALIZER, GryoSerializer.class.getCanonicalName());
             graphComputerConfiguration.setProperty(Constants.GREMLIN_HADOOP_GRAPH_WRITER_HAS_EDGES, this.persist.equals(GraphComputer.Persist.EDGES));
