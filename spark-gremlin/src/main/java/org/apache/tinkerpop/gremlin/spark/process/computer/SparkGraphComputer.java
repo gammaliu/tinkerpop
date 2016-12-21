@@ -18,7 +18,6 @@
  */
 package org.apache.tinkerpop.gremlin.spark.process.computer;
 
-import org.apache.commons.configuration.ConfigurationUtils;
 import org.apache.commons.configuration.FileConfiguration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
@@ -51,7 +50,6 @@ import org.apache.tinkerpop.gremlin.process.computer.MapReduce;
 import org.apache.tinkerpop.gremlin.process.computer.Memory;
 import org.apache.tinkerpop.gremlin.process.computer.VertexProgram;
 import org.apache.tinkerpop.gremlin.process.computer.util.DefaultComputerResult;
-import org.apache.tinkerpop.gremlin.process.computer.util.GraphComputerHelper;
 import org.apache.tinkerpop.gremlin.process.computer.util.MapMemory;
 import org.apache.tinkerpop.gremlin.process.traversal.TraversalStrategies;
 import org.apache.tinkerpop.gremlin.process.traversal.util.TraversalInterruptedException;
@@ -70,7 +68,6 @@ import org.apache.tinkerpop.gremlin.spark.structure.io.PersistedOutputRDD;
 import org.apache.tinkerpop.gremlin.spark.structure.io.SparkContextStorage;
 import org.apache.tinkerpop.gremlin.spark.structure.io.gryo.GryoSerializer;
 import org.apache.tinkerpop.gremlin.structure.Direction;
-import org.apache.tinkerpop.gremlin.structure.Graph;
 import org.apache.tinkerpop.gremlin.structure.io.Storage;
 
 import java.io.File;
@@ -122,6 +119,8 @@ public final class SparkGraphComputer extends AbstractHadoopGraphComputer {
 
     @Override
     public GraphComputer configure(final String key, final Object value) {
+        if (key.equals(SparkLauncher.SPARK_MASTER) && value.toString().startsWith("local"))
+            this.workers(Integer.valueOf(value.toString().substring(6).replace("]", "")));
         this.configuration.setProperty(key, value);
         return this;
     }
